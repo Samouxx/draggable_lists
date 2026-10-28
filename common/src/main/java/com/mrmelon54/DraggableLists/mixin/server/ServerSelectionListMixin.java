@@ -8,7 +8,7 @@ import com.mrmelon54.DraggableLists.duck.ServerListDuckProvider;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.gui.screens.multiplayer.ServerSelectionList;
@@ -41,8 +41,8 @@ public abstract class ServerSelectionListMixin extends ObjectSelectionList<Serve
     }
 
     @Override
-    protected void renderListItems(GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
-        draggable_lists$dragManager.renderListItems(guiGraphics, children(), mouseX, mouseY, tickDelta, this::renderItem);
+    protected void extractListItems(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float tickDelta) {
+        draggable_lists$dragManager.renderListItems(guiGraphics, children(), mouseX, mouseY, tickDelta, this::extractItem);
     }
 
     @Override
@@ -64,8 +64,8 @@ public abstract class ServerSelectionListMixin extends ObjectSelectionList<Serve
     }
 
     @Override
-    public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
-        super.renderWidget(guiGraphics, mouseX, mouseY, delta);
+    public void extractWidgetRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float delta) {
+        super.extractWidgetRenderState(guiGraphics, mouseX, mouseY, delta);
         draggable_lists$dragManager.renderWidget(guiGraphics, mouseX, mouseY, delta);
     }
 

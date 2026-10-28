@@ -1,7 +1,7 @@
 package com.mrmelon54.DraggableLists;
 
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
@@ -26,7 +26,7 @@ public class DragManager<T, E extends ObjectSelectionList.Entry<?>> {
     }
 
     public interface ItemRenderer<L> {
-        void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta, L entry);
+        void render(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float tickDelta, L entry);
     }
 
     public boolean isDragging() {
@@ -71,7 +71,7 @@ public class DragManager<T, E extends ObjectSelectionList.Entry<?>> {
         return true;
     }
 
-    public <L extends ObjectSelectionList.Entry<?>> void renderListItems(GuiGraphics guiGraphics, List<L> entries, int mouseX, int mouseY, float tickDelta, ItemRenderer<L> renderer) {
+    public <L extends ObjectSelectionList.Entry<?>> void renderListItems(GuiGraphicsExtractor guiGraphics, List<L> entries, int mouseX, int mouseY, float tickDelta, ItemRenderer<L> renderer) {
         List<DragItem<T, E>> items = dragList.draggable_lists$getDragItems();
         int draggingIndex = selectedItem == null ? -1 : items.indexOf(selectedItem);
         int draggedPosition = draggingIndex < 0 ? -1 : getIndexFromMouseY(mouseY);
@@ -98,7 +98,7 @@ public class DragManager<T, E extends ObjectSelectionList.Entry<?>> {
         return i >= draggedPosition && i <= draggingIndex ? i + 1 : i;
     }
 
-    public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+    public void renderWidget(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float delta) {
         if (selectedItem == null) return;
 
         E entry = selectedItem.draggable_lists$getUnderlyingEntry();
@@ -111,7 +111,7 @@ public class DragManager<T, E extends ObjectSelectionList.Entry<?>> {
         guiGraphics.pose().translate(0, shift);
         float shaderColorValue = 191f / 255f;
         guiGraphics.fill(entry.getContentX() - 1, entry.getContentY() - 1, entry.getContentRight() + 1, entry.getContentBottom() + 1, ARGB.colorFromFloat(0.5f, shaderColorValue, shaderColorValue, shaderColorValue));
-        entry.renderContent(guiGraphics, mouseX, mouseY - shift, false, delta);
+        entry.extractContent(guiGraphics, mouseX, mouseY - shift, false, delta);
         guiGraphics.pose().popMatrix();
 
         if (y < z) {

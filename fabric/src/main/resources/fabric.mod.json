@@ -28,7 +28,7 @@
     "draggable_lists-common.mixins.json"
   ],
   "depends": {
-    "fabric": "*",
+    "fabric-api": "*",
     "minecraft": "~${minecraft_version}",
     "architectury": ">=${architectury_version}",
     "cloth-config": ">=${cloth_config_version}"

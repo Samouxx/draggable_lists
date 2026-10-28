@@ -4,7 +4,6 @@ import com.mrmelon54.DraggableLists.duck.AbstractPackDuckProvider;
 import com.mrmelon54.DraggableLists.duck.ResourcePackOrganizerDuckProvider;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
 import net.minecraft.server.packs.repository.Pack;
-import org.spongepowered.asm.mixin.Dynamic;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -20,10 +19,10 @@ public abstract class PackSelectionModel_EntryBaseMixin implements AbstractPackD
     @Final
     private Pack pack;
 
+    // The hidden reference to the outer PackSelectionModel: the game is no longer obfuscated, so it keeps Java's own name
     @Shadow
-    @Dynamic("field_25460 is provided by PackSelectionModel.EntryBase but has no mapping")
     @Final
-    private PackSelectionModel field_25460;
+    private PackSelectionModel this$0;
 
     @Override
     public Pack draggable_lists$getPack() {
@@ -45,7 +44,7 @@ public abstract class PackSelectionModel_EntryBaseMixin implements AbstractPackD
         list.removeAll(fixedPacks);
         list.addAll(fixedPacks);
 
-        if (field_25460 instanceof ResourcePackOrganizerDuckProvider duckProvider)
+        if (this$0 instanceof ResourcePackOrganizerDuckProvider duckProvider)
             duckProvider.draggable_lists$updateSelectedList((PackSelectionModel.EntryBase) (Object) this);
     }
 }

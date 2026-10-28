@@ -8,7 +8,7 @@ import com.mrmelon54.DraggableLists.duck.AbstractPackDuckProvider;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
 import net.minecraft.client.gui.screens.packs.TransferableSelectionList;
@@ -30,13 +30,8 @@ public abstract class TransferableSelectionListMixin extends ObjectSelectionList
     }
 
     @Override
-    protected void renderListItems(GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
-        draggable_lists$dragManager.renderListItems(guiGraphics, children(), mouseX, mouseY, tickDelta, this::renderItem);
-    }
-
-    @Unique
-    private boolean draggable_lists$isMouseOverScrollbar(double mouseX) {
-        return scrollbarVisible() && mouseX >= scrollBarX();
+    protected void extractListItems(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float tickDelta) {
+        draggable_lists$dragManager.renderListItems(guiGraphics, children(), mouseX, mouseY, tickDelta, this::extractItem);
     }
 
     @Override
@@ -47,7 +42,7 @@ public abstract class TransferableSelectionListMixin extends ObjectSelectionList
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
-        if (DraggableLists.CONFIG.resourcePackDraggingEnabled.isEnabled() && !draggable_lists$isMouseOverScrollbar(event.x()) && draggable_lists$dragManager.mouseDragged(event.x(), event.y())) return true;
+        if (DraggableLists.CONFIG.resourcePackDraggingEnabled.isEnabled() && !isOverScrollbar(event.x(), event.y()) && draggable_lists$dragManager.mouseDragged(event.x(), event.y())) return true;
         return super.mouseDragged(event, deltaX, deltaY);
     }
 
@@ -58,8 +53,8 @@ public abstract class TransferableSelectionListMixin extends ObjectSelectionList
     }
 
     @Override
-    public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
-        super.renderWidget(guiGraphics, mouseX, mouseY, delta);
+    public void extractWidgetRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float delta) {
+        super.extractWidgetRenderState(guiGraphics, mouseX, mouseY, delta);
         draggable_lists$dragManager.renderWidget(guiGraphics, mouseX, mouseY, delta);
     }
 

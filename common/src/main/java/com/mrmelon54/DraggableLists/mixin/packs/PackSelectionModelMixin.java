@@ -12,7 +12,7 @@ import java.util.function.Consumer;
 public abstract class PackSelectionModelMixin implements ResourcePackOrganizerDuckProvider {
     @Shadow
     @Final
-    Consumer<PackSelectionModel.EntryBase> onListChanged;
+    private Consumer<PackSelectionModel.EntryBase> onListChanged;
 
     @Override
     public void draggable_lists$updateSelectedList(PackSelectionModel.EntryBase entry) {

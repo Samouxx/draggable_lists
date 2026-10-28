@@ -1,6 +1,4 @@
-plugins {
-    id "com.github.johnrengelman.shadow" version "7.1.2"
-}
+apply plugin: "com.gradleup.shadow"
 
 architectury {
     platformSetupLoomIde()
@@ -9,6 +7,7 @@ architectury {
 
 loom {
     accessWidenerPath = project(":common").loom.accessWidenerPath
+    injectAccessWidener(tasks.named('jar'))
 }
 
 configurations {
@@ -20,21 +19,21 @@ configurations {
 }
 
 dependencies {
-    modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
-    modApi "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}"
+    implementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
+    api "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}"
     // Remove the next line if you don't want to depend on the API
-    modApi "dev.architectury:architectury-fabric:${rootProject.architectury_version}"
+    api "dev.architectury:architectury-fabric:${rootProject.architectury_version}"
 
-    modApi("me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}") {
+    api("me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}") {
         exclude(group: "net.fabricmc.fabric-api")
     }
-    modApi("com.terraformersmc:modmenu:${rootProject.modmenu_version}") {
+    api("com.terraformersmc:modmenu:${rootProject.modmenu_version}") {
         exclude(group: "net.fabricmc.fabric-api")
     }
 
-    common(project(path: ":common", configuration: "namedElements")) { transitive false }
+    common(project(path: ":common")) { transitive false }
     shadowCommon(project(path: ":common", configuration: "transformProductionFabric")) { transitive false }
-    common(project(path: ":fabric-like", configuration: "namedElements")) { transitive false }
+    common(project(path: ":fabric-like")) { transitive false }
     shadowCommon(project(path: ":fabric-like", configuration: "transformProductionFabric")) { transitive false }
 }
 
@@ -50,46 +49,23 @@ processResources {
     }
 }
 
+// Without remapping, the final jar is the shadow jar: our classes plus the common code
+jar {
+    archiveClassifier = "raw"
+}
+
 shadowJar {
     exclude "architectury.common.json"
-
+    dependsOn jar
+    mainSpec.sourcePaths.clear()
+    from(zipTree(jar.archiveFile))
     configurations = [project.configurations.shadowCommon]
-    archiveClassifier.set "dev-shadow"
+    archiveClassifier = null
 }
-
-remapJar {
-    injectAccessWidener = true
-    input.set shadowJar.archiveFile
-    dependsOn shadowJar
-    archiveClassifier.set null
-}
-
-jar {
-    archiveClassifier.set "dev-shadow"
-}
+assemble.dependsOn shadowJar
 
 sourcesJar {
     def commonSources = project(":common").sourcesJar
     dependsOn commonSources
     from commonSources.archiveFile.map { zipTree(it) }
-}
-
-components.java {
-    withVariantsFromConfiguration(project.configurations.shadowRuntimeElements) {
-        skip()
-    }
-}
-
-publishing {
-    publications {
-        mavenFabric(MavenPublication) {
-            artifactId = rootProject.archives_base_name + "-" + project.name
-            from components.java
-        }
-    }
-
-    // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
-    repositories {
-        // Add repositories to publish to here.
-    }
 }

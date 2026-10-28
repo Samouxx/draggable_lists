@@ -1,6 +1,7 @@
 plugins {
-    id "architectury-plugin" version "3.4-SNAPSHOT"
-    id "dev.architectury.loom" version "1.13-SNAPSHOT" apply false
+    id "architectury-plugin" version "3.5-SNAPSHOT"
+    id "dev.architectury.loom-no-remap" version "1.17-SNAPSHOT" apply false
+    id "com.gradleup.shadow" version "9.4.3" apply false
 }
 
 architectury {
@@ -8,43 +9,32 @@ architectury {
 }
 
 subprojects {
-    apply plugin: "dev.architectury.loom"
-
-    loom {
-        silentMojangMappingsLicense()
-    }
+    apply plugin: "dev.architectury.loom-no-remap"
 
     dependencies {
+        // Minecraft 26.x is no longer obfuscated: no mappings line, the game already uses Mojang's names
         minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
-        // The following line declares the mojmap mappings, you may use other mappings as well
-        mappings loom.officialMojangMappings()
-        // The following line declares the yarn mappings you may select this one as well.
-        // mappings "net.fabricmc:yarn:1.19.4+build.2:v2"
     }
 }
 
 allprojects {
-    apply plugin: "java"
+    apply plugin: "java-library"
     apply plugin: "architectury-plugin"
-    apply plugin: "maven-publish"
 
-    archivesBaseName = rootProject.archives_base_name
+    base {
+        archivesName = rootProject.archives_base_name
+    }
     version = rootProject.mod_version
     group = rootProject.maven_group
 
     repositories {
-        // Add repositories to retrieve artifacts from in here.
-        // You should only use this when depending on other mods because
-        // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-        // See https://docs.gradle.org/current/userguide/declaring_repositories.html
-        // for more information about repositories.
         maven { url "https://maven.shedaniel.me/" }
         maven { url "https://maven.terraformersmc.com/releases/" }
     }
 
-    tasks.withType(JavaCompile) {
+    tasks.withType(JavaCompile).configureEach {
         options.encoding = "UTF-8"
-        options.release = 21
+        options.release = 25
     }
 
     java {
