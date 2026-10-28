@@ -12,13 +12,16 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.gui.screens.multiplayer.ServerSelectionList;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.ServerList;
-import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Mixin(ServerSelectionList.class)
 @Environment(EnvType.CLIENT)
@@ -28,41 +31,35 @@ public abstract class ServerSelectionListMixin extends ObjectSelectionList<Serve
     private JoinMultiplayerScreen screen;
 
     @Shadow
-    public abstract void setSelected(@Nullable ServerSelectionList.Entry entry);
-
-    @Shadow
     public abstract void updateOnlineServers(ServerList serverList);
-
-    @Shadow
-    public abstract int getRowWidth();
 
     @Unique
     private final DragManager<ServerData, ServerSelectionList.OnlineServerEntry> draggable_lists$dragManager = new DragManager<>(this);
 
-    public ServerSelectionListMixin(Minecraft minecraftClient, int i, int j, int k, int l, int m) {
+    public ServerSelectionListMixin(Minecraft minecraftClient, int i, int j, int k, int l) {
         super(minecraftClient, i, j, k, l);
     }
 
     @Override
     protected void renderListItems(GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
-        draggable_lists$dragManager.renderListItems(guiGraphics, mouseX, mouseY, tickDelta);
+        draggable_lists$dragManager.renderListItems(guiGraphics, children(), mouseX, mouseY, tickDelta, this::renderItem);
     }
 
     @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (draggable_lists$dragManager.mouseReleased(mouseX, mouseY, button)) return true;
-        return super.mouseReleased(mouseX, mouseY, button);
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (draggable_lists$dragManager.mouseReleased(event.x(), event.y())) return true;
+        return super.mouseReleased(event);
     }
 
     @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-        if (DraggableLists.CONFIG.serverDraggingEnabled.isEnabled() && draggable_lists$dragManager.mouseDragged(mouseX, mouseY, button, deltaX, deltaY)) return true;
-        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+    public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
+        if (DraggableLists.CONFIG.serverDraggingEnabled.isEnabled() && draggable_lists$dragManager.mouseDragged(event.x(), event.y())) return true;
+        return super.mouseDragged(event, deltaX, deltaY);
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        if (draggable_lists$dragManager.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) return true;
+        if (draggable_lists$dragManager.isDragging()) return true;
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
 
@@ -74,61 +71,50 @@ public abstract class ServerSelectionListMixin extends ObjectSelectionList<Serve
 
     @Override
     public DragItem<ServerData, ServerSelectionList.OnlineServerEntry> draggable_lists$getEntryAtPosition(double mouseX, double mouseY) {
-        ServerSelectionList.Entry entryAtPosition = getEntryAtPosition(mouseX, mouseY);
-        if (entryAtPosition instanceof ServerSelectionList.OnlineServerEntry onlineServerEntry) {
-            return (DragItem<ServerData, ServerSelectionList.OnlineServerEntry>) onlineServerEntry;
+        return getEntryAtPosition(mouseX, mouseY) instanceof ServerSelectionList.OnlineServerEntry onlineServerEntry ? draggable_lists$asDragItem(onlineServerEntry) : null;
+    }
+
+    @Override
+    public List<DragItem<ServerData, ServerSelectionList.OnlineServerEntry>> draggable_lists$getDragItems() {
+        List<DragItem<ServerData, ServerSelectionList.OnlineServerEntry>> items = new ArrayList<>();
+        for (ServerSelectionList.Entry entry : children()) {
+            if (entry instanceof ServerSelectionList.OnlineServerEntry onlineServerEntry) items.add(draggable_lists$asDragItem(onlineServerEntry));
         }
-        return null;
+        return items;
     }
 
-    public int draggable_lists$getIndexOfEntry(DragItem<ServerData, ServerSelectionList.OnlineServerEntry> selectedItem) {
-        return children().indexOf(selectedItem.draggable_lists$getUnderlyingEntry());
+    @Unique
+    @SuppressWarnings("unchecked")
+    private static DragItem<ServerData, ServerSelectionList.OnlineServerEntry> draggable_lists$asDragItem(ServerSelectionList.OnlineServerEntry onlineServerEntry) {
+        return (DragItem<ServerData, ServerSelectionList.OnlineServerEntry>) (Object) onlineServerEntry;
     }
 
+    @Override
     public void draggable_lists$setDragging(boolean b) {
-        super.setDragging(b);
+        setDragging(b);
     }
 
-    public int draggable_lists$getHeaderHeight() {
-        return headerHeight;
-    }
-
+    @Override
     public int draggable_lists$getY() {
         return getY();
     }
 
+    @Override
     public int draggable_lists$getBottom() {
         return getBottom();
     }
 
-    public int draggable_lists$getItemHeight() {
-        return itemHeight;
-    }
-
-    public int draggable_lists$getRowTop(int i) {
-        return getRowTop(i);
-    }
-
-    public int draggable_lists$getRowBottom(int i) {
-        return getRowBottom(i);
-    }
-
-    public double draggable_lists$getRowLeft() {
-        return getRowLeft();
-    }
-
-    public int draggable_lists$getRowWidth() {
-        return getRowWidth();
-    }
-
+    @Override
     public double draggable_lists$getScrollAmount() {
         return scrollAmount();
     }
 
+    @Override
     public void draggable_lists$setScrollAmount(double v) {
         setScrollAmount(v);
     }
 
+    @Override
     public void draggable_lists$moveEntry(DragItem<ServerData, ServerSelectionList.OnlineServerEntry> item, int n) {
         ServerList servers = screen.getServers();
         if (servers instanceof ServerListDuckProvider duckProvider) {
@@ -136,13 +122,5 @@ public abstract class ServerSelectionListMixin extends ObjectSelectionList<Serve
             servers.save();
             updateOnlineServers(servers);
         }
-    }
-
-    public int draggable_lists$getItemCount() {
-        return getItemCount();
-    }
-
-    public void draggable_lists$renderItem(GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta, int i, int rowLeft, int rowTop, int rowWidth, int rowHeight) {
-        renderItem(guiGraphics, mouseX, mouseY, tickDelta, i, rowLeft, rowTop, rowWidth, rowHeight);
     }
 }

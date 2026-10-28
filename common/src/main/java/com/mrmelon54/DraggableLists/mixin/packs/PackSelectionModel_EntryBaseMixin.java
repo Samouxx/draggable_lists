@@ -10,7 +10,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 
 import java.util.List;
-import java.util.stream.Stream;
 
 @Mixin(PackSelectionModel.EntryBase.class)
 public abstract class PackSelectionModel_EntryBaseMixin implements AbstractPackDuckProvider {
@@ -27,21 +26,26 @@ public abstract class PackSelectionModel_EntryBaseMixin implements AbstractPackD
     private PackSelectionModel field_25460;
 
     @Override
-    public void draggable_lists$moveTo(int j) {
+    public Pack draggable_lists$getPack() {
+        return pack;
+    }
+
+    @Override
+    public void draggable_lists$moveTo(AbstractPackDuckProvider target) {
         if (pack.isFixedPosition()) return;
 
         List<Pack> list = getSelfList();
+        int j = list.indexOf(target.draggable_lists$getPack());
+        if (j < 0) return;
         list.remove(pack);
         list.add(j, pack);
 
         // get all fixed position resource packs, remove them and add them all at the end
-        Stream<Pack> packStream = list.stream().filter(Pack::isFixedPosition);
-        List<Pack> list1 = packStream.toList();
-        list.removeAll(list1);
-        list.addAll(list1);
+        List<Pack> fixedPacks = list.stream().filter(Pack::isFixedPosition).toList();
+        list.removeAll(fixedPacks);
+        list.addAll(fixedPacks);
 
         if (field_25460 instanceof ResourcePackOrganizerDuckProvider duckProvider)
-            duckProvider.draggable_lists$updateSelectedList();
+            duckProvider.draggable_lists$updateSelectedList((PackSelectionModel.EntryBase) (Object) this);
     }
-
 }

@@ -12,26 +12,26 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
 import net.minecraft.client.gui.screens.packs.TransferableSelectionList;
+import net.minecraft.client.input.MouseButtonEvent;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Mixin(TransferableSelectionList.class)
 @Environment(EnvType.CLIENT)
-public abstract class TransferableSelectionListMixin extends ObjectSelectionList<TransferableSelectionList.PackEntry> implements DragList<PackSelectionModel.Entry, TransferableSelectionList.PackEntry> {
-    @Shadow
-    protected abstract int scrollBarX();
-
+public abstract class TransferableSelectionListMixin extends ObjectSelectionList<TransferableSelectionList.Entry> implements DragList<PackSelectionModel.Entry, TransferableSelectionList.PackEntry> {
     @Unique
     private final DragManager<PackSelectionModel.Entry, TransferableSelectionList.PackEntry> draggable_lists$dragManager = new DragManager<>(this);
 
-    public TransferableSelectionListMixin(Minecraft minecraft, int i, int j, int k, int l, int m) {
+    public TransferableSelectionListMixin(Minecraft minecraft, int i, int j, int k, int l) {
         super(minecraft, i, j, k, l);
     }
 
     @Override
     protected void renderListItems(GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
-        draggable_lists$dragManager.renderListItems(guiGraphics, mouseX, mouseY, tickDelta);
+        draggable_lists$dragManager.renderListItems(guiGraphics, children(), mouseX, mouseY, tickDelta, this::renderItem);
     }
 
     @Unique
@@ -40,20 +40,20 @@ public abstract class TransferableSelectionListMixin extends ObjectSelectionList
     }
 
     @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (draggable_lists$dragManager.mouseReleased(mouseX, mouseY, button)) return true;
-        return super.mouseReleased(mouseX, mouseY, button);
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (draggable_lists$dragManager.mouseReleased(event.x(), event.y())) return true;
+        return super.mouseReleased(event);
     }
 
     @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-        if (DraggableLists.CONFIG.resourcePackDraggingEnabled.isEnabled() && !draggable_lists$isMouseOverScrollbar(mouseX) && draggable_lists$dragManager.mouseDragged(mouseX, mouseY, button, deltaX, deltaY)) return true;
-        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+    public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
+        if (DraggableLists.CONFIG.resourcePackDraggingEnabled.isEnabled() && !draggable_lists$isMouseOverScrollbar(event.x()) && draggable_lists$dragManager.mouseDragged(event.x(), event.y())) return true;
+        return super.mouseDragged(event, deltaX, deltaY);
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        if (draggable_lists$dragManager.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) return true;
+        if (draggable_lists$dragManager.isDragging()) return true;
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
 
@@ -65,23 +65,27 @@ public abstract class TransferableSelectionListMixin extends ObjectSelectionList
 
     @Override
     public DragItem<PackSelectionModel.Entry, TransferableSelectionList.PackEntry> draggable_lists$getEntryAtPosition(double mouseX, double mouseY) {
-        TransferableSelectionList.PackEntry entryAtPosition = getEntryAtPosition(mouseX, mouseY);
-        return (DragItem<PackSelectionModel.Entry, TransferableSelectionList.PackEntry>) entryAtPosition;
+        return getEntryAtPosition(mouseX, mouseY) instanceof TransferableSelectionList.PackEntry packEntry ? draggable_lists$asDragItem(packEntry) : null;
     }
 
     @Override
-    public int draggable_lists$getIndexOfEntry(DragItem<PackSelectionModel.Entry, TransferableSelectionList.PackEntry> selectedItem) {
-        return children().indexOf(selectedItem.draggable_lists$getUnderlyingEntry());
+    public List<DragItem<PackSelectionModel.Entry, TransferableSelectionList.PackEntry>> draggable_lists$getDragItems() {
+        List<DragItem<PackSelectionModel.Entry, TransferableSelectionList.PackEntry>> items = new ArrayList<>();
+        for (TransferableSelectionList.Entry entry : children()) {
+            if (entry instanceof TransferableSelectionList.PackEntry packEntry) items.add(draggable_lists$asDragItem(packEntry));
+        }
+        return items;
+    }
+
+    @Unique
+    @SuppressWarnings("unchecked")
+    private static DragItem<PackSelectionModel.Entry, TransferableSelectionList.PackEntry> draggable_lists$asDragItem(TransferableSelectionList.PackEntry packEntry) {
+        return (DragItem<PackSelectionModel.Entry, TransferableSelectionList.PackEntry>) (Object) packEntry;
     }
 
     @Override
     public void draggable_lists$setDragging(boolean b) {
-        super.setDragging(b);
-    }
-
-    @Override
-    public int draggable_lists$getHeaderHeight() {
-        return headerHeight;
+        setDragging(b);
     }
 
     @Override
@@ -92,31 +96,6 @@ public abstract class TransferableSelectionListMixin extends ObjectSelectionList
     @Override
     public int draggable_lists$getBottom() {
         return getBottom();
-    }
-
-    @Override
-    public int draggable_lists$getItemHeight() {
-        return itemHeight;
-    }
-
-    @Override
-    public int draggable_lists$getRowTop(int i) {
-        return getRowTop(i);
-    }
-
-    @Override
-    public int draggable_lists$getRowBottom(int i) {
-        return getRowBottom(i);
-    }
-
-    @Override
-    public double draggable_lists$getRowLeft() {
-        return getRowLeft();
-    }
-
-    @Override
-    public int draggable_lists$getRowWidth() {
-        return getRowWidth();
     }
 
     @Override
@@ -131,18 +110,10 @@ public abstract class TransferableSelectionListMixin extends ObjectSelectionList
 
     @Override
     public void draggable_lists$moveEntry(DragItem<PackSelectionModel.Entry, TransferableSelectionList.PackEntry> item, int n) {
-        if (item.draggable_lists$getUnderlyingData() instanceof AbstractPackDuckProvider duckProvider) {
-            duckProvider.draggable_lists$moveTo(n);
+        // Move to the pack shown at position n: the model's list may also hold packs hidden by the search box
+        PackSelectionModel.Entry target = draggable_lists$getDragItems().get(n).draggable_lists$getUnderlyingData();
+        if (item.draggable_lists$getUnderlyingData() instanceof AbstractPackDuckProvider moving && target instanceof AbstractPackDuckProvider targetPack) {
+            moving.draggable_lists$moveTo(targetPack);
         }
-    }
-
-    @Override
-    public int draggable_lists$getItemCount() {
-        return getItemCount();
-    }
-
-    @Override
-    public void draggable_lists$renderItem(GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta, int i, int rowLeft, int rowTop, int rowWidth, int rowHeight) {
-        renderItem(guiGraphics, mouseX, mouseY, tickDelta, i, rowLeft, rowTop, rowWidth, rowHeight);
     }
 }

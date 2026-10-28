@@ -1,6 +1,6 @@
 package com.mrmelon54.DraggableLists.config;
 
-import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.Minecraft;
 
 public enum EnabledMode {
     DISABLED,
@@ -10,7 +10,7 @@ public enum EnabledMode {
     public boolean isEnabled() {
         return switch (this) {
             case DISABLED -> false;
-            case REQUIRES_MODIFIER -> Screen.hasShiftDown();
+            case REQUIRES_MODIFIER -> Minecraft.getInstance().hasShiftDown();
             case ENABLED -> true;
         };
     }

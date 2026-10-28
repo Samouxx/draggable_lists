@@ -1,17 +1,22 @@
 package com.mrmelon54.DraggableLists;
 
-import net.minecraft.Util;
+import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ObjectSelectionList;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
+import net.minecraft.util.Util;
+
+import java.util.List;
 
 public class DragManager<T, E extends ObjectSelectionList.Entry<?>> {
+    // A release at x = 0 is outside every list: it ends the drag without moving anything
+    public static final MouseButtonEvent RELEASE_OUTSIDE = new MouseButtonEvent(0, 0, new MouseButtonInfo(0, 0));
+
     private final DragList<T, E> dragList;
     private DragItem<T, E> selectedItem;
-    private double draggingStartX = 0;
-    private double draggingStartY = 0;
-    private double draggingOffsetX = 0;
     private double draggingOffsetY = 0;
     private double softScrollingTimer = 0;
     private double softScrollingOrigin = 0;
@@ -20,7 +25,15 @@ public class DragManager<T, E extends ObjectSelectionList.Entry<?>> {
         this.dragList = dragList;
     }
 
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+    public interface ItemRenderer<L> {
+        void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta, L entry);
+    }
+
+    public boolean isDragging() {
+        return selectedItem != null;
+    }
+
+    public boolean mouseReleased(double mouseX, double mouseY) {
         dragList.draggable_lists$setDragging(false);
         if (selectedItem == null) return false;
 
@@ -28,73 +41,54 @@ public class DragManager<T, E extends ObjectSelectionList.Entry<?>> {
         selectedItem = null;
         softScrollingTimer = 0;
 
-        Cursor.reset();
         double y = capYCoordinate((int) mouseY, true);
-        selectedItem1.draggable_lists$setBeingDragged(false);
-
         DragItem<T, E> hoveredEntry = dragList.draggable_lists$getEntryAtPosition(mouseX, y);
         if (hoveredEntry == null) return false;
 
         T draggingData = selectedItem1.draggable_lists$getUnderlyingData();
         T hoveredData = hoveredEntry.draggable_lists$getUnderlyingData();
 
-        // if the items are null, identical or a dragServerItem call fails then stop here
-        return draggingData != null && hoveredData != null && draggingData != hoveredData && dragServerItem(selectedItem1, y);
-    }
-
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-        if (selectedItem != null || !isCapMouseY((int) mouseY)) return selectedItem != null;
-
-        selectedItem = dragList.draggable_lists$getEntryAtPosition(mouseX, mouseY);
-        if (selectedItem == null) return false;
-
-        // Save the mouse origin position and the offset for the top left corner of the widget
-        draggingStartX = mouseX;
-        draggingStartY = mouseY;
-        draggingOffsetX = dragList.draggable_lists$getRowLeft() - draggingStartX;
-        int entryIndex = dragList.draggable_lists$getIndexOfEntry(selectedItem);
-        if (entryIndex < 0) {
-            selectedItem = null;
-            return false;
-        }
-        draggingOffsetY = dragList.draggable_lists$getRowTop(entryIndex) - draggingStartY;
-
-        // Don't grab if inside the server icon
-        if (draggingOffsetX > -32f) {
-            selectedItem = null;
-            return false;
-        }
-
-        dragList.draggable_lists$setDragging(true);
-        selectedItem.draggable_lists$getUnderlyingEntry().setFocused(true);
-        selectedItem.draggable_lists$setBeingDragged(true);
-        softScrollingTimer = 0;
-        Cursor.setDragging();
+        // if the items are null or identical then stop here
+        if (draggingData == null || hoveredData == null || draggingData == hoveredData) return false;
+        dragList.draggable_lists$moveEntry(selectedItem1, getIndexFromMouseY(y));
         return true;
     }
 
-    public boolean mouseScrolled(double mouseX, double mouseY, double deltaX, double deltaY) {
-        return selectedItem != null;
+    public boolean mouseDragged(double mouseX, double mouseY) {
+        if (selectedItem != null || !isCapMouseY((int) mouseY)) return selectedItem != null;
+
+        DragItem<T, E> item = dragList.draggable_lists$getEntryAtPosition(mouseX, mouseY);
+        if (item == null) return false;
+
+        E entry = item.draggable_lists$getUnderlyingEntry();
+        // Don't grab inside the icon: its buttons keep working
+        if (mouseX - entry.getX() < 32) return false;
+
+        selectedItem = item;
+        draggingOffsetY = entry.getY() - mouseY;
+        dragList.draggable_lists$setDragging(true);
+        softScrollingTimer = 0;
+        return true;
     }
 
-    public void renderListItems(GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
-        int rowLeft = (int) dragList.draggable_lists$getRowLeft();
-        int rowWidth = dragList.draggable_lists$getRowWidth();
-        int rowHeight = dragList.draggable_lists$getItemHeight() - 4;
-        int n = dragList.draggable_lists$getItemCount();
+    public <L extends ObjectSelectionList.Entry<?>> void renderListItems(GuiGraphics guiGraphics, List<L> entries, int mouseX, int mouseY, float tickDelta, ItemRenderer<L> renderer) {
+        List<DragItem<T, E>> items = dragList.draggable_lists$getDragItems();
+        int draggingIndex = selectedItem == null ? -1 : items.indexOf(selectedItem);
+        int draggedPosition = draggingIndex < 0 ? -1 : getIndexFromMouseY(mouseY);
 
-        int draggingIndex = selectedItem == null ? -1 : dragList.draggable_lists$getIndexOfEntry(selectedItem);
-        int draggedPosition = selectedItem == null ? -1 : getIndexFromMouseY(mouseY);
+        for (L entry : entries) {
+            int i = draggingIndex < 0 ? -1 : items.indexOf(entry);
+            if (i >= 0 && i == draggingIndex) continue; // drawn under the mouse by renderWidget
 
-        for (int i = 0; i < n; i++) {
-            int renderRow = otherItemIndexShift(i, draggingIndex, draggedPosition);
-            int rowTop = dragList.draggable_lists$getRowTop(renderRow);
-            int rowBottom = dragList.draggable_lists$getRowBottom(renderRow);
-            if (rowBottom >= dragList.draggable_lists$getY() && rowTop <= dragList.draggable_lists$getBottom()) {
-                if (i != draggingIndex) {
-                    dragList.draggable_lists$renderItem(guiGraphics, mouseX, mouseY, tickDelta, i, rowLeft, rowTop, rowWidth, rowHeight);
-                }
-            }
+            // Shift the other items to show where the dragged one will land
+            int shift = i < 0 ? 0 : items.get(otherItemIndexShift(i, draggingIndex, draggedPosition)).draggable_lists$getUnderlyingEntry().getY() - entry.getY();
+            int top = entry.getY() + shift;
+            if (top + entry.getHeight() < dragList.draggable_lists$getY() || top > dragList.draggable_lists$getBottom()) continue;
+
+            guiGraphics.pose().pushMatrix();
+            guiGraphics.pose().translate(0, shift);
+            renderer.render(guiGraphics, mouseX, mouseY - shift, tickDelta, entry);
+            guiGraphics.pose().popMatrix();
         }
     }
 
@@ -104,20 +98,20 @@ public class DragManager<T, E extends ObjectSelectionList.Entry<?>> {
         return i >= draggedPosition && i <= draggingIndex ? i + 1 : i;
     }
 
-
     public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
         if (selectedItem == null) return;
 
+        E entry = selectedItem.draggable_lists$getUnderlyingEntry();
         int z = Mth.floor(mouseY + draggingOffsetY);
-        int x = Mth.floor(draggingStartX + draggingOffsetX);
         int y = capYCoordinate(z);
-        int entryHeight = dragList.draggable_lists$getItemHeight() - 4;
-        int entryWidth = dragList.draggable_lists$getRowWidth();
+        int shift = y - entry.getY();
 
+        guiGraphics.requestCursor(CursorTypes.RESIZE_NS);
         guiGraphics.pose().pushMatrix();
+        guiGraphics.pose().translate(0, shift);
         float shaderColorValue = 191f / 255f;
-        guiGraphics.fill(x - 1, y - 1, x + entryWidth - 2, y + entryHeight + 1, ARGB.colorFromFloat(0.5f, shaderColorValue, shaderColorValue, shaderColorValue));
-        selectedItem.draggable_lists$render(guiGraphics, 0, y, x, entryWidth, entryHeight, mouseX, mouseY, false, delta);
+        guiGraphics.fill(entry.getContentX() - 1, entry.getContentY() - 1, entry.getContentRight() + 1, entry.getContentBottom() + 1, ARGB.colorFromFloat(0.5f, shaderColorValue, shaderColorValue, shaderColorValue));
+        entry.renderContent(guiGraphics, mouseX, mouseY - shift, false, delta);
         guiGraphics.pose().popMatrix();
 
         if (y < z) {
@@ -140,8 +134,9 @@ public class DragManager<T, E extends ObjectSelectionList.Entry<?>> {
     }
 
     private int capYCoordinate(int y, boolean useScreenSpace) {
-        int scrollableTop = dragList.draggable_lists$getY() + 4;
-        int scrollableHeight = dragList.draggable_lists$getBottom() - dragList.draggable_lists$getY() - (useScreenSpace ? 2 : dragList.draggable_lists$getItemHeight() + 2);
+        int itemHeight = useScreenSpace || selectedItem == null ? 0 : selectedItem.draggable_lists$getUnderlyingEntry().getHeight();
+        int scrollableTop = dragList.draggable_lists$getY() + 2;
+        int scrollableHeight = dragList.draggable_lists$getBottom() - dragList.draggable_lists$getY() - (useScreenSpace ? 2 : itemHeight + 2);
         if (y < scrollableTop) y = scrollableTop;
         if (y > scrollableTop + scrollableHeight) y = scrollableTop + scrollableHeight;
         return y;
@@ -156,13 +151,9 @@ public class DragManager<T, E extends ObjectSelectionList.Entry<?>> {
     }
 
     private int getIndexFromMouseY(double mouseY) {
-        int m = Mth.floor(mouseY - (double) dragList.draggable_lists$getY()) - dragList.draggable_lists$getHeaderHeight() + (int) dragList.draggable_lists$getScrollAmount() - 4;
-        return m / dragList.draggable_lists$getItemHeight();
-    }
-
-    private boolean dragServerItem(DragItem<T, E> item, double mouseY) {
-        int n = getIndexFromMouseY(mouseY);
-        dragList.draggable_lists$moveEntry(item, n);
-        return true;
+        List<DragItem<T, E>> items = dragList.draggable_lists$getDragItems();
+        if (items.isEmpty()) return 0;
+        E first = items.getFirst().draggable_lists$getUnderlyingEntry();
+        return Mth.clamp(Mth.floor((mouseY - first.getY()) / first.getHeight()), 0, items.size() - 1);
     }
 }

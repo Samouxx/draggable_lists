@@ -1,5 +1,9 @@
 package com.mrmelon54.DraggableLists.duck;
 
+import net.minecraft.server.packs.repository.Pack;
+
 public interface AbstractPackDuckProvider {
-    void draggable_lists$moveTo(int j);
+    Pack draggable_lists$getPack();
+
+    void draggable_lists$moveTo(AbstractPackDuckProvider target);
 }
