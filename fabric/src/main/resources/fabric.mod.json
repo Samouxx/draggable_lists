@@ -7,10 +7,13 @@
   "authors": [
     "MrMelon54"
   ],
+  "contributors": [
+    "Samouxx (26.x port)"
+  ],
   "contact": {
-    "homepage": "https://mrmelon54.com/minecraft/draggable-lists",
-    "sources": "https://github.com/mrmelon54/draggable_lists",
-    "issues": "https://github.com/mrmelon54/draggable_lists/issues"
+    "homepage": "https://github.com/Samouxx/draggable_lists",
+    "sources": "https://github.com/Samouxx/draggable_lists",
+    "issues": "https://github.com/Samouxx/draggable_lists/issues"
   },
   "license": "GPL-3.0-only",
   "icon": "icon.png",
